@@ -1,0 +1,58 @@
+name: Windows Release
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub Release tag
+        required: true
+        default: v0.1.4
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows installer
+        run: pnpm exec tauri build --ci
+
+      - name: Stage release assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          Copy-Item src-tauri/target/release/codebuddy-light.exe release-assets/CodeBuddy-Light-Windows-portable.exe
+          Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe |
+            Select-Object -First 1 |
+            Copy-Item -Destination release-assets/CodeBuddy-Light-Windows-setup.exe
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.release_tag }}" release-assets/*.exe --clobber
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CodeBuddy-Light-Windows
+          path: release-assets/*.exe

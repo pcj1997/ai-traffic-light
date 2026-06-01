@@ -1,0 +1,21 @@
+{
+  "name": "codebuddy-light",
+  "private": true,
+  "version": "0.1.4",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.5.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.5.0",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.3"
+  }
+}

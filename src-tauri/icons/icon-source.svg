@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="housing" x1="184" y1="92" x2="328" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B303A"/>
+      <stop offset="1" stop-color="#11141A"/>
+    </linearGradient>
+    <radialGradient id="red" cx="0" cy="0" r="1" gradientTransform="translate(236 136) rotate(55) scale(69)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF9A90"/>
+      <stop offset=".42" stop-color="#F04444"/>
+      <stop offset="1" stop-color="#B91C1C"/>
+    </radialGradient>
+    <radialGradient id="yellow" cx="0" cy="0" r="1" gradientTransform="translate(236 256) rotate(55) scale(69)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF0A4"/>
+      <stop offset=".42" stop-color="#FACC15"/>
+      <stop offset="1" stop-color="#CA8A04"/>
+    </radialGradient>
+    <radialGradient id="green" cx="0" cy="0" r="1" gradientTransform="translate(236 376) rotate(55) scale(69)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A7F3C0"/>
+      <stop offset=".42" stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#15803D"/>
+    </radialGradient>
+    <filter id="shadow" x="104" y="56" width="304" height="408" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-opacity=".42"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="132" y="24" width="248" height="464" rx="96" fill="url(#housing)" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="4"/>
+    <circle cx="256" cy="136" r="57" fill="#090C11" stroke="#FFFFFF" stroke-opacity=".08" stroke-width="4"/>
+    <circle cx="256" cy="136" r="48" fill="url(#red)"/>
+    <circle cx="256" cy="256" r="57" fill="#090C11" stroke="#FFFFFF" stroke-opacity=".08" stroke-width="4"/>
+    <circle cx="256" cy="256" r="48" fill="url(#yellow)"/>
+    <circle cx="256" cy="376" r="57" fill="#090C11" stroke="#FFFFFF" stroke-opacity=".08" stroke-width="4"/>
+    <circle cx="256" cy="376" r="48" fill="url(#green)"/>
+  </g>
+</svg>

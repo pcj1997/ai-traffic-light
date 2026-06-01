@@ -1,0 +1,75 @@
+name: CI
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+      - name: Lint Rust
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+
+      - name: Test Rust
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Test Python Hook
+        if: runner.os == 'macOS'
+        run: |
+          printf '{"session_id":"ci-test"}' | python3 hooks/status_writer.py --state working --message test
+          test -f "$HOME/.codebuddy-light/sessions/ci-test.json"
+          printf '{"session_id":"ci-test"}' | python3 hooks/status_writer.py --state idle
+          test ! -f "$HOME/.codebuddy-light/sessions/ci-test.json"
+
+      - name: Test PowerShell Hook
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          '{"session_id":"ci-test"}' | powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State working -Message test
+          if (-not (Test-Path "$HOME/.codebuddy-light/sessions/ci-test.json")) { exit 1 }
+          '{"session_id":"ci-test"}' | powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State idle
+          if (Test-Path "$HOME/.codebuddy-light/sessions/ci-test.json") { exit 1 }
+          '{"session_id":"ci-permission","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"requires_approval":true}}' |
+            powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State working -Message test
+          $permission = Get-Content "$HOME/.codebuddy-light/sessions/ci-permission.json" -Raw | ConvertFrom-Json
+          if ($permission.state -ne "waiting" -or $permission.message -ne "等待权限确认") { exit 1 }
+          $transcript = Join-Path $env:RUNNER_TEMP "codebuddy-light-options.jsonl"
+          '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"请选择一种方案：\n1. 方案 A\n2. 方案 B"}]}}' |
+            Set-Content -Path $transcript -Encoding utf8
+          @{session_id="ci-choice"; hook_event_name="Stop"; transcript_path=$transcript} | ConvertTo-Json -Compress |
+            powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State completed -Message done
+          $choice = Get-Content "$HOME/.codebuddy-light/sessions/ci-choice.json" -Raw | ConvertFrom-Json
+          if ($choice.state -ne "waiting" -or $choice.message -ne "等待选择或确认") { exit 1 }

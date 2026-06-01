@@ -1,0 +1,21 @@
+[package]
+name = "codebuddy-light"
+version = "0.1.4"
+description = "Floating traffic light for CodeBuddy CN conversation status"
+authors = ["pcj1997"]
+edition = "2021"
+
+[lib]
+name = "codebuddy_light_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+dirs = "6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.37"
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
+tauri-plugin-autostart = "2.5.1"

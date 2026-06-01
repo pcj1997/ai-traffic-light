@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodeBuddy Light</title>
+  </head>
+  <body data-state="idle">
+    <main class="widget">
+      <section class="housing" data-tauri-drag-region>
+        <div class="brand" data-tauri-drag-region>CB</div>
+        <div class="light light-red" data-state="waiting"></div>
+        <div class="light light-yellow" data-state="working"></div>
+        <div class="light light-green" data-state="completed"></div>
+      </section>
+
+      <section class="panel">
+        <strong id="status-label">空闲</strong>
+        <span id="session-count">暂无会话记录</span>
+        <ul id="session-list" class="session-list"></ul>
+        <button id="clear-sessions" class="clear-sessions" type="button" hidden>
+          清除会话记录
+        </button>
+        <div id="hooks-warning" class="hooks-warning" hidden>
+          <span>Hooks 缺失或需要更新</span>
+          <button id="setup-hooks" type="button">安装 Hooks</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
