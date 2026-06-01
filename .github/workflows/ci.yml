@@ -50,40 +50,40 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           printf '{"session_id":"ci-test"}' | python3 hooks/status_writer.py --state working --message test
-          test -f "$HOME/.codebuddy-light/sessions/codebuddy-ci-test.json"
+          test -f "$HOME/.ai-traffic-light/sessions/codebuddy-ci-test.json"
           printf '{"session_id":"ci-test"}' | python3 hooks/status_writer.py --state idle
-          test ! -f "$HOME/.codebuddy-light/sessions/codebuddy-ci-test.json"
+          test ! -f "$HOME/.ai-traffic-light/sessions/codebuddy-ci-test.json"
           printf '{"session_id":"ci-claude","hook_event_name":"PermissionRequest"}' |
             python3 hooks/status_writer.py --client claude --state working --message test
-          test "$(python3 -c 'import json, pathlib; print(json.loads(pathlib.Path.home().joinpath(".codebuddy-light/sessions/claude-ci-claude.json").read_text())["state"])')" = "waiting"
+          test "$(python3 -c 'import json, pathlib; print(json.loads(pathlib.Path.home().joinpath(".ai-traffic-light/sessions/claude-ci-claude.json").read_text())["state"])')" = "waiting"
           output="$(printf '{"session_id":"ci-codex","hook_event_name":"Stop"}' |
             python3 hooks/status_writer.py --client codex --state completed --message done --emit-empty-json)"
           test "$output" = "{}"
-          test -f "$HOME/.codebuddy-light/sessions/codex-ci-codex.json"
+          test -f "$HOME/.ai-traffic-light/sessions/codex-ci-codex.json"
 
       - name: Test PowerShell Hook
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           '{"session_id":"ci-test"}' | powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State working -Message test
-          if (-not (Test-Path "$HOME/.codebuddy-light/sessions/codebuddy-ci-test.json")) { exit 1 }
+          if (-not (Test-Path "$HOME/.ai-traffic-light/sessions/codebuddy-ci-test.json")) { exit 1 }
           '{"session_id":"ci-test"}' | powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State idle
-          if (Test-Path "$HOME/.codebuddy-light/sessions/codebuddy-ci-test.json") { exit 1 }
+          if (Test-Path "$HOME/.ai-traffic-light/sessions/codebuddy-ci-test.json") { exit 1 }
           '{"session_id":"ci-permission","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"requires_approval":true}}' |
             powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State working -Message test
-          $permission = Get-Content "$HOME/.codebuddy-light/sessions/codebuddy-ci-permission.json" -Raw | ConvertFrom-Json
+          $permission = Get-Content "$HOME/.ai-traffic-light/sessions/codebuddy-ci-permission.json" -Raw | ConvertFrom-Json
           if ($permission.state -ne "waiting" -or $permission.message -ne "等待权限确认") { exit 1 }
           '{"session_id":"ci-claude","hook_event_name":"PermissionRequest"}' |
             powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -Client claude -State working -Message test
-          $claudePermission = Get-Content "$HOME/.codebuddy-light/sessions/claude-ci-claude.json" -Raw | ConvertFrom-Json
+          $claudePermission = Get-Content "$HOME/.ai-traffic-light/sessions/claude-ci-claude.json" -Raw | ConvertFrom-Json
           if ($claudePermission.state -ne "waiting" -or $claudePermission.client -ne "claude") { exit 1 }
           $codexStopOutput = '{"session_id":"ci-codex","hook_event_name":"Stop"}' |
             powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -Client codex -State completed -Message done -EmitEmptyJson
           if ($codexStopOutput -ne "{}") { exit 1 }
-          $transcript = Join-Path $env:RUNNER_TEMP "codebuddy-light-options.jsonl"
+          $transcript = Join-Path $env:RUNNER_TEMP "ai-traffic-light-options.jsonl"
           '{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"请选择一种方案：\n1. 方案 A\n2. 方案 B"}]}}' |
             Set-Content -Path $transcript -Encoding utf8
           @{session_id="ci-choice"; hook_event_name="Stop"; transcript_path=$transcript} | ConvertTo-Json -Compress |
             powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State completed -Message done
-          $choice = Get-Content "$HOME/.codebuddy-light/sessions/codebuddy-ci-choice.json" -Raw | ConvertFrom-Json
+          $choice = Get-Content "$HOME/.ai-traffic-light/sessions/codebuddy-ci-choice.json" -Raw | ConvertFrom-Json
           if ($choice.state -ne "waiting" -or $choice.message -ne "等待选择或确认") { exit 1 }

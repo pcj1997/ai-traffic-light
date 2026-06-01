@@ -111,7 +111,7 @@ fn now_secs() -> u64 {
 fn sessions_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_default()
-        .join(".codebuddy-light")
+        .join(".ai-traffic-light")
         .join("sessions")
 }
 
@@ -130,6 +130,8 @@ fn is_client_process(client: &str, name: &str, executable: &str) -> bool {
             identity.contains("codebuddy")
                 && !identity.contains("codebuddy-light")
                 && !identity.contains("codebuddy light")
+                && !identity.contains("ai-traffic-light")
+                && !identity.contains("ai traffic light")
         }
         "codex" => identity.contains("codex"),
         "claude" => identity.contains("claude"),
@@ -363,8 +365,8 @@ mod tests {
     #[test]
     fn session_titles_prefer_the_project_directory() {
         assert_eq!(
-            session_title("1234567890", "/tmp/codebuddy-light"),
-            "codebuddy-light"
+            session_title("1234567890", "/tmp/ai-traffic-light"),
+            "ai-traffic-light"
         );
         assert_eq!(session_title("1234567890", ""), "会话 12345678");
     }
@@ -385,6 +387,11 @@ mod tests {
             "codebuddy",
             "codebuddy-light",
             "/Applications/CodeBuddy Light.app/Contents/MacOS/codebuddy-light"
+        ));
+        assert!(!is_client_process(
+            "codebuddy",
+            "ai-traffic-light",
+            "/Applications/AI Traffic Light.app/Contents/MacOS/ai-traffic-light"
         ));
         assert!(is_client_process("codex", "codex", "/usr/local/bin/codex"));
         assert!(is_client_process(

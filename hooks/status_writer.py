@@ -15,7 +15,7 @@ import time
 from typing import Any
 
 
-SESSIONS_DIR = Path.home() / ".codebuddy-light" / "sessions"
+SESSIONS_DIR = Path.home() / ".ai-traffic-light" / "sessions"
 ASK_TOOL_NAMES = {
     "askuserquestion",
     "askuser",

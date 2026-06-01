@@ -18,6 +18,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai-traffic-light"
+version = "0.1.4"
+dependencies = [
+ "dirs 6.0.0",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+]
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -330,19 +343,6 @@ dependencies = [
  "num-traits",
  "serde",
  "windows-link 0.2.1",
-]
-
-[[package]]
-name = "codebuddy-light"
-version = "0.1.4"
-dependencies = [
- "dirs 6.0.0",
- "serde",
- "serde_json",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
 ]
 
 [[package]]

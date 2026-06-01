@@ -93,7 +93,7 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            let status_item = MenuItemBuilder::with_id("status", "CodeBuddy Light：空闲")
+            let status_item = MenuItemBuilder::with_id("status", "AI Traffic Light：空闲")
                 .enabled(false)
                 .build(app)?;
             let show_item = MenuItemBuilder::with_id("show", "显示悬浮灯").build(app)?;
@@ -119,7 +119,7 @@ pub fn run() {
             let menu_autostart_item = autostart_item.clone();
             let tray = TrayIconBuilder::with_id("main")
                 .icon(tray_icon("idle"))
-                .tooltip("CodeBuddy Light：空闲")
+                .tooltip("AI Traffic Light：空闲")
                 .menu(&menu)
                 .on_menu_event(move |app, event| match event.id().as_ref() {
                     "show" => show_window(app),
@@ -157,11 +157,11 @@ pub fn run() {
                 let snapshot = read_status();
                 let tooltip = if snapshot.session_count > 0 {
                     format!(
-                        "CodeBuddy Light：{} | {} 个会话状态",
+                        "AI Traffic Light：{} | {} 个会话状态",
                         snapshot.label, snapshot.session_count
                     )
                 } else {
-                    "CodeBuddy Light：空闲".to_string()
+                    "AI Traffic Light：空闲".to_string()
                 };
                 let _ = tray.set_tooltip(Some(&tooltip));
                 let _ = tray.set_icon(Some(tray_icon(&snapshot.state)));
@@ -177,5 +177,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running CodeBuddy Light");
+        .expect("error while running AI Traffic Light");
 }

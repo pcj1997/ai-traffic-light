@@ -15,7 +15,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-path = Path.home() / ".codebuddy-light" / "sessions" / "demo.json"
+path = Path.home() / ".ai-traffic-light" / "sessions" / "demo.json"
 path.parent.mkdir(parents=True, exist_ok=True)
 if args.state == "idle":
     path.unlink(missing_ok=True)

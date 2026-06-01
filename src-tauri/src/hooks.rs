@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
-const HOOK_MARKER: &str = "codebuddy-light";
+const HOOK_MARKERS: &[&str] = &["ai-traffic-light", "codebuddy-light"];
 const CODEBUDDY_LEGACY_EVENTS: &[&str] = &[
     "PermissionRequest",
     "Notification",
@@ -40,7 +40,7 @@ fn home_dir() -> PathBuf {
 
 fn local_hook_path() -> PathBuf {
     home_dir()
-        .join(".codebuddy-light")
+        .join(".ai-traffic-light")
         .join("hooks")
         .join(hook_script_name())
 }
@@ -147,14 +147,19 @@ fn append_hook(hooks: &mut Map<String, Value>, event: &str, definition: Value) {
     let Some(entries) = entries.as_array_mut() else {
         return;
     };
-    entries.retain(|entry| !entry.to_string().contains(HOOK_MARKER));
+    entries.retain(|entry| !is_managed_hook(entry));
     entries.push(definition);
+}
+
+fn is_managed_hook(entry: &Value) -> bool {
+    let content = entry.to_string();
+    HOOK_MARKERS.iter().any(|marker| content.contains(marker))
 }
 
 fn remove_hook(hooks: &mut Map<String, Value>, event: &str) {
     let mut remove_event = false;
     if let Some(entries) = hooks.get_mut(event).and_then(Value::as_array_mut) {
-        entries.retain(|entry| !entry.to_string().contains(HOOK_MARKER));
+        entries.retain(|entry| !is_managed_hook(entry));
         remove_event = entries.is_empty();
     }
     if remove_event {
@@ -347,11 +352,7 @@ fn codebuddy_configuration_matches(hooks: &Map<String, Value>, destination: &Pat
             hooks
                 .get(*event)
                 .and_then(Value::as_array)
-                .is_none_or(|entries| {
-                    entries
-                        .iter()
-                        .all(|entry| !entry.to_string().contains(HOOK_MARKER))
-                })
+                .is_none_or(|entries| entries.iter().all(|entry| !is_managed_hook(entry)))
         })
 }
 
@@ -469,7 +470,7 @@ mod tests {
 
     #[test]
     fn configured_hooks_match_the_expected_installation() {
-        let destination = Path::new("/tmp/codebuddy-light/status_writer.py");
+        let destination = Path::new("/tmp/ai-traffic-light/status_writer.py");
         for configure in [
             configure_codebuddy_hooks as fn(&mut Map<String, serde_json::Value>, &Path),
             configure_claude_hooks,
@@ -488,7 +489,7 @@ mod tests {
 
     #[test]
     fn legacy_codebuddy_observer_requires_an_update() {
-        let destination = Path::new("/tmp/codebuddy-light/status_writer.py");
+        let destination = Path::new("/tmp/ai-traffic-light/status_writer.py");
         let mut hooks = Map::new();
         configure_codebuddy_hooks(&mut hooks, destination);
         hooks.insert(
@@ -505,14 +506,14 @@ mod tests {
             .unwrap()
             .as_nanos();
         let settings_path =
-            std::env::temp_dir().join(format!("codebuddy-light-settings-{unique}.json"));
+            std::env::temp_dir().join(format!("ai-traffic-light-settings-{unique}.json"));
         fs::write(
             &settings_path,
             r#"{"env":{"EXISTING":"preserved"},"permissions":{"allow":["Read"]}}"#,
         )
         .unwrap();
 
-        let destination = Path::new("/tmp/codebuddy-light/status_writer.py");
+        let destination = Path::new("/tmp/ai-traffic-light/status_writer.py");
         install_json_hooks(
             settings_path.clone(),
             destination,
@@ -527,5 +528,22 @@ mod tests {
         assert_eq!(settings["permissions"]["allow"][0], "Read");
         assert!(settings["hooks"]["PermissionRequest"].is_array());
         let _ = fs::remove_file(settings_path);
+    }
+
+    #[test]
+    fn installing_new_hooks_removes_legacy_hook_commands() {
+        let destination = Path::new("/tmp/ai-traffic-light/status_writer.py");
+        let legacy_destination = Path::new("/tmp/codebuddy-light/status_writer.py");
+        let mut hooks = Map::new();
+        hooks.insert(
+            "SessionStart".to_string(),
+            serde_json::json!([hook(legacy_destination, "codex", "idle", "")]),
+        );
+
+        configure_codex_hooks(&mut hooks, destination);
+
+        let entries = hooks["SessionStart"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].to_string().contains("ai-traffic-light"));
     }
 }

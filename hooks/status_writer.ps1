@@ -9,7 +9,7 @@ param(
     [switch]$EmitEmptyJson
 )
 
-$sessionsDir = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".codebuddy-light\sessions"
+$sessionsDir = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".ai-traffic-light\sessions"
 $textWaitingPermission = [regex]::Unescape("\u7b49\u5f85\u6743\u9650\u786e\u8ba4")
 $textWaitingInput = [regex]::Unescape("\u7b49\u5f85\u8865\u5145\u4fe1\u606f")
 $textCompleted = [regex]::Unescape("\u56de\u590d\u5b8c\u6210")

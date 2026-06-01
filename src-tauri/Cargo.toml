@@ -1,12 +1,12 @@
 [package]
-name = "codebuddy-light"
+name = "ai-traffic-light"
 version = "0.1.4"
-description = "Floating traffic light for CodeBuddy CN conversation status"
+description = "Floating traffic light for AI coding client conversation status"
 authors = ["pcj1997"]
 edition = "2021"
 
 [lib]
-name = "codebuddy_light_lib"
+name = "ai_traffic_light_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
