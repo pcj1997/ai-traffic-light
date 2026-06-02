@@ -157,17 +157,24 @@ body[data-state="idle"] .light-green {
   animation-delay: 1.4s;
 }
 
-.panel {
+.panel-stack {
   display: none;
+  width: 150px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.widget:hover .panel-stack {
+  display: flex;
+}
+
+.panel {
+  display: flex;
   width: 150px;
   padding: 11px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 13px;
   background: rgba(25, 28, 35, 0.96);
-}
-
-.widget:hover .panel {
-  display: flex;
   flex-direction: column;
   gap: 5px;
 }
@@ -292,12 +299,7 @@ body[data-state="idle"] .light-green {
 }
 
 .hooks-warning {
-  display: flex;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.68);
-  flex-direction: column;
-  gap: 5px;
   font-size: 10px;
 }
 

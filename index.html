@@ -26,19 +26,21 @@
         ></div>
       </section>
 
-      <section class="panel">
-        <strong id="status-label">空闲</strong>
-        <span id="session-count">暂无会话记录</span>
-        <ul id="session-list" class="session-list"></ul>
-        <button id="clear-sessions" class="clear-sessions" type="button" hidden>
-          清除会话记录
-        </button>
-        <div id="hooks-warning" class="hooks-warning" hidden>
+      <div class="panel-stack">
+        <section class="panel">
+          <strong id="status-label">空闲</strong>
+          <span id="session-count">暂无会话记录</span>
+          <ul id="session-list" class="session-list"></ul>
+          <button id="clear-sessions" class="clear-sessions" type="button" hidden>
+            清除会话记录
+          </button>
+        </section>
+        <section id="hooks-warning" class="panel hooks-warning" hidden>
           <span id="hooks-warning-message">Hooks 缺失或需要更新</span>
           <span id="hooks-status" class="hooks-status" role="status" hidden></span>
           <button id="setup-hooks" type="button">安装 Hooks</button>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
