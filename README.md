@@ -75,7 +75,9 @@ Windows 普通用户请优先使用安装版。安装版内嵌 WebView2 Evergree
 
 ## 当前阶段
 
-这是首个可运行版本，已经实现 macOS 与 Windows 的 Hook 安装路径和开机启动选项。后续会补充声音提醒和发布安装包。
+当前版本已经可以日常使用，支持 CodeBuddy CN、Codex 和 Claude Code，提供 macOS 与 Windows 安装包。
+
+应用已经实现多会话状态聚合、按客户端分组展示、系统托盘入口、开机自启动、Hook 自动检查与更新、历史会话自动回收和手动清理。后续会继续补充声音提醒等体验优化。
 
 ## License
 
