@@ -1,4 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
+import {
+  currentMonitor,
+  getCurrentWindow,
+  PhysicalPosition,
+} from "@tauri-apps/api/window";
 import "./styles.css";
 
 type Status =
@@ -39,12 +44,45 @@ const hooksStatus = document.querySelector<HTMLElement>("#hooks-status");
 const setupButton = document.querySelector<HTMLButtonElement>("#setup-hooks");
 const clearSessionsButton =
   document.querySelector<HTMLButtonElement>("#clear-sessions");
+const appWindow = getCurrentWindow();
+const panelShift = 158;
 let hooksSuccessVisibleUntil = 0;
+let panelPlacementChanging = false;
 
 function clientLabel(client: string) {
   if (client === "codex") return "Codex";
   if (client === "claude") return "Claude";
   return "CodeBuddy";
+}
+
+async function updatePanelPlacement(position?: PhysicalPosition) {
+  if (panelPlacementChanging) return;
+
+  const [windowPosition, monitor, scaleFactor] = await Promise.all([
+    position ? Promise.resolve(position) : appWindow.outerPosition(),
+    currentMonitor(),
+    appWindow.scaleFactor(),
+  ]);
+  if (!monitor) return;
+
+  const panelOnLeft = document.body.dataset.panelSide === "left";
+  const housingCenter =
+    windowPosition.x + (40 + (panelOnLeft ? panelShift : 0)) * scaleFactor;
+  const monitorCenter =
+    monitor.workArea.position.x + monitor.workArea.size.width / 2;
+  const shouldPlacePanelOnLeft = housingCenter > monitorCenter;
+  if (panelOnLeft === shouldPlacePanelOnLeft) return;
+
+  document.body.dataset.panelSide = shouldPlacePanelOnLeft ? "left" : "right";
+  panelPlacementChanging = true;
+  try {
+    const offset = (shouldPlacePanelOnLeft ? -panelShift : panelShift) * scaleFactor;
+    await appWindow.setPosition(
+      new PhysicalPosition(windowPosition.x + offset, windowPosition.y),
+    );
+  } finally {
+    panelPlacementChanging = false;
+  }
 }
 
 function render(snapshot: StatusSnapshot) {
@@ -177,5 +215,13 @@ clearSessionsButton?.addEventListener("click", async () => {
 
 refresh();
 refreshHooksStatus();
+updatePanelPlacement().catch((error) => {
+  console.error("Failed to update panel placement", error);
+});
+appWindow.onMoved(({ payload }) => {
+  updatePanelPlacement(payload).catch((error) => {
+    console.error("Failed to update panel placement", error);
+  });
+});
 window.setInterval(refresh, 500);
 window.setInterval(refreshHooksStatus, 5000);

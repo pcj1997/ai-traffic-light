@@ -33,6 +33,10 @@ body {
   padding: 8px;
 }
 
+body[data-panel-side="left"] .widget {
+  flex-direction: row-reverse;
+}
+
 .housing {
   width: 64px;
   padding: 8px 8px 7px;
