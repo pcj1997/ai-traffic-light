@@ -32,6 +32,7 @@ const statusLabel = document.querySelector<HTMLElement>("#status-label");
 const sessionCount = document.querySelector<HTMLElement>("#session-count");
 const sessionList = document.querySelector<HTMLUListElement>("#session-list");
 const hooksWarning = document.querySelector<HTMLElement>("#hooks-warning");
+const hooksStatus = document.querySelector<HTMLElement>("#hooks-status");
 const setupButton = document.querySelector<HTMLButtonElement>("#setup-hooks");
 const clearSessionsButton =
   document.querySelector<HTMLButtonElement>("#clear-sessions");
@@ -123,13 +124,23 @@ async function refreshHooksStatus() {
   }
 }
 
+function setHooksStatus(message: string, state: "busy" | "error" | "success") {
+  if (!hooksStatus) return;
+  hooksStatus.hidden = false;
+  hooksStatus.dataset.state = state;
+  hooksStatus.textContent = message;
+}
+
 setupButton?.addEventListener("click", async () => {
   setupButton.disabled = true;
+  setupButton.textContent = "正在安装…";
+  setHooksStatus("正在写入 Hooks 配置，请稍候。", "busy");
   try {
-    setupButton.textContent = await invoke<string>("install_hooks");
+    const message = await invoke<string>("install_hooks");
+    setHooksStatus(message, "success");
     await refreshHooksStatus();
   } catch (error) {
-    setupButton.textContent = `安装失败: ${String(error)}`;
+    setHooksStatus(`安装失败：${String(error)}`, "error");
   } finally {
     setupButton.textContent = "安装 Hooks";
     setupButton.disabled = false;

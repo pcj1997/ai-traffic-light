@@ -408,7 +408,7 @@ fn install_json_hooks(
     }
     let mut settings: Value = if settings_path.exists() {
         let content = fs::read_to_string(&settings_path).map_err(|error| error.to_string())?;
-        serde_json::from_str(&content)
+        serde_json::from_str(content.trim_start_matches('\u{feff}'))
             .map_err(|error| format!("现有 {label} 配置不是有效 JSON，未修改：{error}"))?
     } else {
         json!({})
@@ -526,6 +526,36 @@ mod tests {
             serde_json::from_str(&fs::read_to_string(&settings_path).unwrap()).unwrap();
         assert_eq!(settings["env"]["EXISTING"], "preserved");
         assert_eq!(settings["permissions"]["allow"][0], "Read");
+        assert!(settings["hooks"]["PermissionRequest"].is_array());
+        let _ = fs::remove_file(settings_path);
+    }
+
+    #[test]
+    fn installing_hooks_accepts_utf8_bom_settings() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let settings_path =
+            std::env::temp_dir().join(format!("ai-traffic-light-bom-settings-{unique}.json"));
+        fs::write(
+            &settings_path,
+            "\u{feff}{\"env\":{\"EXISTING\":\"preserved\"}}",
+        )
+        .unwrap();
+
+        let destination = Path::new("/tmp/ai-traffic-light/status_writer.py");
+        install_json_hooks(
+            settings_path.clone(),
+            destination,
+            "Claude Code",
+            configure_claude_hooks,
+        )
+        .unwrap();
+
+        let settings: Value =
+            serde_json::from_str(&fs::read_to_string(&settings_path).unwrap()).unwrap();
+        assert_eq!(settings["env"]["EXISTING"], "preserved");
         assert!(settings["hooks"]["PermissionRequest"].is_array());
         let _ = fs::remove_file(settings_path);
     }
