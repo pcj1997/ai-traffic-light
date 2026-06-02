@@ -95,11 +95,15 @@ function render(snapshot: StatusSnapshot) {
         const title = document.createElement("strong");
         title.textContent = session.title;
 
+        const details = document.createElement("span");
+        details.className = "session-details";
+
         const message = document.createElement("span");
         message.textContent = session.message || session.label;
 
-        heading.append(client, title);
-        content.append(heading, message);
+        heading.append(title);
+        details.append(client, message);
+        content.append(heading, details);
         item.append(dot, content, remove);
         return item;
       }),
