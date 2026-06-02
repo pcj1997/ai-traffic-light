@@ -91,16 +91,19 @@ body {
 
 .light-red {
   --signal-color: #ef4444;
+  --signal-glow: rgba(239, 68, 68, 0.82);
   --signal-inset: rgba(129, 15, 15, 0.3);
 }
 
 .light-yellow {
   --signal-color: #facc15;
+  --signal-glow: rgba(250, 204, 21, 0.82);
   --signal-inset: rgba(146, 94, 8, 0.28);
 }
 
 .light-green {
   --signal-color: #22c55e;
+  --signal-glow: rgba(34, 197, 94, 0.8);
   --signal-inset: rgba(8, 92, 45, 0.3);
 }
 
@@ -111,17 +114,26 @@ body {
 .light-red.active,
 body[data-state="error"] .light-red {
   background: var(--signal-color);
-  box-shadow: inset 0 -5px 8px var(--signal-inset);
+  box-shadow:
+    0 0 10px var(--signal-color),
+    0 0 26px var(--signal-glow),
+    inset 0 -5px 8px var(--signal-inset);
 }
 
 .light-yellow.active {
   background: var(--signal-color);
-  box-shadow: inset 0 -5px 8px var(--signal-inset);
+  box-shadow:
+    0 0 10px var(--signal-color),
+    0 0 26px var(--signal-glow),
+    inset 0 -5px 8px var(--signal-inset);
 }
 
 .light-green.active {
   background: var(--signal-color);
-  box-shadow: inset 0 -5px 8px var(--signal-inset);
+  box-shadow:
+    0 0 10px var(--signal-color),
+    0 0 26px var(--signal-glow),
+    inset 0 -5px 8px var(--signal-inset);
 }
 
 body[data-state="working"] .light-yellow.active,
@@ -348,7 +360,10 @@ button:disabled {
   10%,
   22% {
     background: var(--signal-color);
-    box-shadow: inset 0 -5px 8px var(--signal-inset);
+    box-shadow:
+      0 0 10px var(--signal-color),
+      0 0 26px var(--signal-glow),
+      inset 0 -5px 8px var(--signal-inset);
     transform: scale(1.03);
   }
 }
