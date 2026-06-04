@@ -160,6 +160,7 @@ body[data-state="idle"] .light-green {
 .panel-stack {
   display: none;
   width: 150px;
+  max-height: calc(100vh - 16px);
   flex-direction: column;
   gap: 8px;
 }
@@ -171,12 +172,17 @@ body[data-state="idle"] .light-green {
 .panel {
   display: flex;
   width: 150px;
+  min-height: 0;
   padding: 11px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 13px;
   background: rgba(25, 28, 35, 0.96);
   flex-direction: column;
   gap: 5px;
+}
+
+.panel-stack > .panel:not(.hooks-warning) {
+  flex: 1 1 auto;
 }
 
 #status-label {
@@ -193,9 +199,11 @@ body[data-state="idle"] .light-green {
 
 .session-list {
   display: flex;
+  min-height: 0;
   max-height: 112px;
   margin: 2px 0 0;
   padding: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 4px;
   overflow-y: auto;
@@ -320,6 +328,7 @@ body[data-state="idle"] .light-green {
 }
 
 .hooks-warning {
+  flex: 0 0 auto;
   color: rgba(255, 255, 255, 0.68);
   font-size: 10px;
 }
