@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Existing GitHub Release tag
         required: true
-        default: v0.1.10
+        default: v0.1.11
 
 permissions:
   contents: write

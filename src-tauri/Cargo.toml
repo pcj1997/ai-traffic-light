@@ -1,6 +1,6 @@
 [package]
 name = "ai-traffic-light"
-version = "0.1.10"
+version = "0.1.11"
 description = "Floating traffic light for AI coding client conversation status"
 authors = ["pcj1997"]
 edition = "2021"
