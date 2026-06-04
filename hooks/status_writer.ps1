@@ -9,6 +9,14 @@ param(
     [switch]$EmitEmptyJson
 )
 
+$utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
+try {
+    [Console]::InputEncoding = $utf8WithoutBom
+    [Console]::OutputEncoding = $utf8WithoutBom
+} catch {
+    # Some hosts do not expose a mutable console; file output still uses UTF-8 below.
+}
+$OutputEncoding = $utf8WithoutBom
 $sessionsDir = Join-Path ([Environment]::GetFolderPath("UserProfile")) ".ai-traffic-light\sessions"
 $textWaitingPermission = [regex]::Unescape("\u7b49\u5f85\u6743\u9650\u786e\u8ba4")
 $textWaitingInput = [regex]::Unescape("\u7b49\u5f85\u8865\u5145\u4fe1\u606f")
@@ -238,7 +246,6 @@ $content = @{
 } | ConvertTo-Json -Compress
 
 $temporaryFile = "$sessionFile.tmp.$PID"
-$utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($temporaryFile, $content, $utf8WithoutBom)
 Move-Item -Path $temporaryFile -Destination $sessionFile -Force
 if ($EmitEmptyJson) {

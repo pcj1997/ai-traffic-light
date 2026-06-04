@@ -93,3 +93,11 @@ jobs:
             powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State completed -Message done
           $choice = Get-Content "$HOME/.ai-traffic-light/sessions/codebuddy-ci-choice.json" -Raw | ConvertFrom-Json
           if ($choice.state -ne "waiting" -or $choice.message -ne "等待选择或确认") { exit 1 }
+          $chineseCwd = Join-Path $HOME "代码\中文项目"
+          @{session_id="ci-chinese"; cwd=$chineseCwd} | ConvertTo-Json -Compress |
+            powershell -NoProfile -ExecutionPolicy Bypass -File hooks/status_writer.ps1 -State completed -Message done
+          $chineseSession = Get-Content "$HOME/.ai-traffic-light/sessions/codebuddy-ci-chinese.json" -Raw | ConvertFrom-Json
+          if ($chineseSession.cwd -ne $chineseCwd) {
+            Write-Error "Chinese cwd was not preserved. Expected '$chineseCwd' got '$($chineseSession.cwd)'"
+            exit 1
+          }
