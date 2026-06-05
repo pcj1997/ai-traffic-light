@@ -41,6 +41,7 @@ interface RemoteBridgeStatus {
   ssh_reverse_tunnel_command: string;
   remote_installer_path: string;
   remote_install_command: string;
+  error_message: string;
 }
 
 const lights = Array.from(document.querySelectorAll<HTMLElement>(".light"));
@@ -235,10 +236,11 @@ async function refreshRemoteBridgeStatus() {
     if (remoteBridgeSummary) {
       remoteBridgeSummary.textContent = status.enabled
         ? `本机端口 ${status.port}`
-        : "桥接未启动";
+        : `桥接未启动${status.error_message ? `：${status.error_message}` : ""}`;
     }
     if (remoteBridgeCommand) {
       remoteBridgeCommand.textContent = status.ssh_reverse_tunnel_command;
+      remoteBridgeCommand.hidden = !status.enabled;
     }
     if (prepareRemoteBridgeButton) {
       prepareRemoteBridgeButton.disabled = !status.enabled;

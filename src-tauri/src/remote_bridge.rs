@@ -1,17 +1,20 @@
 use crate::sessions::{write_session_update, SessionUpdate};
 use serde::Serialize;
 use std::fs;
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 const DEFAULT_PORT: u16 = 37628;
 const MAX_BODY_SIZE: usize = 1024 * 1024;
+const CONNECTION_TIMEOUT: Duration = Duration::from_secs(5);
 
 static BRIDGE: OnceLock<BridgeStatus> = OnceLock::new();
+static BRIDGE_ERROR: OnceLock<String> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BridgeStatus {
@@ -23,6 +26,7 @@ pub struct BridgeStatus {
     pub ssh_reverse_tunnel_command: String,
     pub remote_installer_path: String,
     pub remote_install_command: String,
+    pub error_message: String,
 }
 
 fn bridge_dir() -> PathBuf {
@@ -39,13 +43,35 @@ fn remote_installer_path() -> PathBuf {
     bridge_dir().join("install-codebuddy-remote-hook.sh")
 }
 
-fn generate_token() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let pid = std::process::id();
-    format!("{now:x}{pid:x}")
+fn generate_token() -> Result<String, String> {
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes)
+        .map_err(|error| format!("生成桥接 token 失败，系统随机源不可用：{error}"))?;
+    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+fn write_token(path: PathBuf, token: &str) -> Result<(), String> {
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+
+    let mut file = options.open(&path).map_err(|error| error.to_string())?;
+    file.write_all(token.as_bytes())
+        .map_err(|error| error.to_string())?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = fs::Permissions::from_mode(0o600);
+        fs::set_permissions(path, permissions).map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
 }
 
 fn bridge_token() -> Result<String, String> {
@@ -53,13 +79,19 @@ fn bridge_token() -> Result<String, String> {
     if let Ok(token) = fs::read_to_string(&path) {
         let token = token.trim().to_string();
         if !token.is_empty() {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let permissions = fs::Permissions::from_mode(0o600);
+                let _ = fs::set_permissions(&path, permissions);
+            }
             return Ok(token);
         }
     }
 
-    let token = generate_token();
+    let token = generate_token()?;
     fs::create_dir_all(bridge_dir()).map_err(|error| error.to_string())?;
-    fs::write(path, &token).map_err(|error| error.to_string())?;
+    write_token(path, &token)?;
     Ok(token)
 }
 
@@ -75,12 +107,12 @@ fn build_status(port: u16, token: String) -> BridgeStatus {
         ssh_reverse_tunnel_command: format!("ssh -N -R {port}:127.0.0.1:{port} <user>@<server>"),
         remote_installer_path: remote_installer_path().display().to_string(),
         remote_install_command: "bash install-codebuddy-remote-hook.sh".to_string(),
+        error_message: String::new(),
     }
 }
 
 fn bind_listener() -> Result<TcpListener, String> {
     TcpListener::bind(("127.0.0.1", DEFAULT_PORT))
-        .or_else(|_| TcpListener::bind(("127.0.0.1", 0)))
         .map_err(|error| format!("启动远程桥接监听失败：{error}"))
 }
 
@@ -89,8 +121,12 @@ pub fn start() -> Result<BridgeStatus, String> {
         return Ok(status.clone());
     }
 
-    let token = bridge_token()?;
-    let listener = bind_listener()?;
+    let token = bridge_token().inspect_err(|error| {
+        let _ = BRIDGE_ERROR.set(error.clone());
+    })?;
+    let listener = bind_listener().inspect_err(|error| {
+        let _ = BRIDGE_ERROR.set(error.clone());
+    })?;
     let port = listener
         .local_addr()
         .map_err(|error| error.to_string())?
@@ -120,6 +156,7 @@ pub fn status() -> BridgeStatus {
         ssh_reverse_tunnel_command: String::new(),
         remote_installer_path: remote_installer_path().display().to_string(),
         remote_install_command: String::new(),
+        error_message: BRIDGE_ERROR.get().cloned().unwrap_or_default(),
     })
 }
 
@@ -187,6 +224,13 @@ fn read_http_request(stream: &mut TcpStream) -> Result<(String, String), String>
 }
 
 fn handle_connection(mut stream: TcpStream, token: &str) -> Result<(), String> {
+    stream
+        .set_read_timeout(Some(CONNECTION_TIMEOUT))
+        .map_err(|error| error.to_string())?;
+    stream
+        .set_write_timeout(Some(CONNECTION_TIMEOUT))
+        .map_err(|error| error.to_string())?;
+
     let (headers, body) = read_http_request(&mut stream)?;
     let request_line = headers.lines().next().unwrap_or_default();
     let mut request_parts = request_line.split_whitespace();
@@ -253,15 +297,42 @@ AI_TRAFFIC_LIGHT_BRIDGE_URL={bridge_url} \
 python3 - <<'PY'
 import json
 import os
+import shlex
+import shutil
+import time
 from pathlib import Path
 
 settings_path = Path.home() / ".codebuddy" / "settings.json"
+backup_path = None
+if settings_path.exists():
+    backup_path = settings_path.with_name(f"settings.ai-traffic-light-backup-{{int(time.time())}}.json")
+    shutil.copy2(settings_path, backup_path)
+
 try:
-    settings = json.loads(settings_path.read_text(encoding="utf-8-sig"))
+    raw_settings = settings_path.read_text(encoding="utf-8-sig").strip()
 except FileNotFoundError:
+    raw_settings = ""
+
+if raw_settings:
+    try:
+        settings = json.loads(raw_settings)
+    except json.JSONDecodeError:
+        print(f"Existing CodeBuddy settings is invalid JSON; backup saved to {{backup_path}}. Rebuilding hooks config.")
+        settings = {{}}
+else:
     settings = {{}}
 
-hooks = settings.setdefault("hooks", {{}})
+if not isinstance(settings, dict):
+    print(f"Existing CodeBuddy settings root is not an object; backup saved to {{backup_path}}. Rebuilding hooks config.")
+    settings = {{}}
+
+hooks = settings.get("hooks")
+if not isinstance(hooks, dict):
+    if hooks is not None:
+        print(f"Existing CodeBuddy hooks config is not an object; backup saved to {{backup_path}}. Replacing hooks config.")
+    hooks = {{}}
+    settings["hooks"] = hooks
+
 hook_path = str(Path.home() / ".ai-traffic-light" / "hooks" / "status_writer.py")
 bridge_url = os.environ["AI_TRAFFIC_LIGHT_BRIDGE_URL"]
 events = json.loads(os.environ["AI_TRAFFIC_LIGHT_REMOTE_HOOKS"])
@@ -271,18 +342,36 @@ def managed(entry):
 
 for event, state, message in events:
     command = {command_builder}
-    entries = hooks.setdefault(event, [])
+    entries = hooks.get(event)
+    if not isinstance(entries, list):
+        if entries is not None:
+            print(f"Existing CodeBuddy hook event {{event}} is not a list; backup saved to {{backup_path}}. Replacing this event.")
+        entries = []
+        hooks[event] = entries
     entries[:] = [entry for entry in entries if not managed(entry)]
     entries.append({{"matcher": "", "hooks": [{{"type": "command", "command": command}}]}})
 
 settings_path.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
 print(f"AI Traffic Light remote CodeBuddy hooks installed: {{settings_path}}")
+if backup_path:
+    print(f"Backup saved: {{backup_path}}")
 PY
 "#,
         hook_content = hook_content,
         hooks_json = shell_quote(&hooks_json),
         bridge_url = shell_quote(bridge_url),
-        command_builder = r#"f"python3 '{hook_path}' --client codebuddy --state '{state}' --message '{message}' --bridge-url '{bridge_url}'""#
+        command_builder = r#"" ".join([
+        "python3",
+        shlex.quote(hook_path),
+        "--client",
+        "codebuddy",
+        "--state",
+        shlex.quote(state),
+        "--message",
+        shlex.quote(message),
+        "--bridge-url",
+        shlex.quote(bridge_url),
+    ])"#
     );
 
     let path = remote_installer_path();
