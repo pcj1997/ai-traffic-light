@@ -81,6 +81,16 @@ macOS 会生成应用包，Windows 会生成 Windows 安装包。仓库的 GitHu
 
 Windows 普通用户请优先使用安装版。安装版内嵌 WebView2 Evergreen Bootstrapper，会在系统缺少 WebView2 Runtime 时引导联网安装。便携版不会自动安装 WebView2，仅适用于系统已经具备 WebView2 Runtime 的电脑。
 
+## Windows 常见问题
+
+如果 Windows 上红绿灯无法监听到会话状态，可能是因为 PowerShell 执行策略限制了脚本运行。请以管理员身份打开 PowerShell，执行以下命令：
+
+```powershell
+Set-ExecutionPolicy Unrestricted -Scope CurrentUser
+```
+
+该命令仅影响当前用户，允许本地脚本运行，不会改变系统级别的安全策略。执行后重启 AI Traffic Light 即可恢复正常监听。
+
 ## 当前阶段
 
 当前版本已经可以日常使用，支持 CodeBuddy CN、Codex 和 Claude Code，提供 macOS 与 Windows 安装包。
