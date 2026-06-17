@@ -69,6 +69,19 @@ struct SessionData {
     created_at: u64,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SessionUpdate {
+    pub client: String,
+    pub session_id: String,
+    pub state: String,
+    #[serde(default)]
+    pub message: String,
+    #[serde(default)]
+    pub cwd: String,
+    #[serde(default)]
+    pub timestamp: u64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SessionSnapshot {
     pub id: String,
@@ -111,7 +124,7 @@ fn now_secs() -> u64 {
         .as_secs()
 }
 
-fn sessions_dir() -> PathBuf {
+pub fn sessions_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_default()
         .join(".ai-traffic-light")
@@ -177,13 +190,87 @@ fn session_paths() -> Vec<PathBuf> {
         .collect()
 }
 
-fn valid_session_id(id: &str) -> bool {
+pub fn valid_session_id(id: &str) -> bool {
     !id.is_empty()
         && id != "."
         && id != ".."
         && id
             .chars()
             .all(|character| character.is_ascii_alphanumeric() || "._-".contains(character))
+}
+
+fn existing_created_at(path: &Path, fallback: u64) -> u64 {
+    let Ok(content) = fs::read_to_string(path) else {
+        return fallback;
+    };
+    serde_json::from_str::<SessionData>(&content)
+        .ok()
+        .map(|data| {
+            if data.created_at == 0 {
+                data.timestamp
+            } else {
+                data.created_at
+            }
+        })
+        .unwrap_or(fallback)
+}
+
+fn write_json_atomic(path: &Path, content: &str) -> Result<(), String> {
+    let dir = sessions_dir();
+    fs::create_dir_all(&dir).map_err(|error| error.to_string())?;
+    let temporary_path = path.with_extension(format!(
+        "json.tmp.{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    fs::write(&temporary_path, content).map_err(|error| error.to_string())?;
+    fs::rename(&temporary_path, path).map_err(|error| error.to_string())
+}
+
+pub fn write_session_update(update: SessionUpdate) -> Result<(), String> {
+    if !matches!(update.client.as_str(), "codebuddy" | "codex" | "claude") {
+        return Err("无效的客户端类型".to_string());
+    }
+    if !valid_session_id(&update.session_id) {
+        return Err("无效的会话 ID".to_string());
+    }
+    if !matches!(
+        update.state.as_str(),
+        "idle" | "working" | "waiting" | "completed" | "error"
+    ) {
+        return Err("无效的会话状态".to_string());
+    }
+
+    let path = sessions_dir().join(format!("{}-{}.json", update.client, update.session_id));
+    if update.state == "idle" {
+        return fs::remove_file(path)
+            .or_else(|error| {
+                if error.kind() == std::io::ErrorKind::NotFound {
+                    Ok(())
+                } else {
+                    Err(error)
+                }
+            })
+            .map_err(|error| format!("删除会话失败：{error}"));
+    }
+
+    let timestamp = if update.timestamp == 0 {
+        now_secs()
+    } else {
+        update.timestamp
+    };
+    let content = serde_json::json!({
+        "client": update.client,
+        "state": update.state,
+        "message": update.message,
+        "cwd": update.cwd,
+        "timestamp": timestamp,
+        "created_at": existing_created_at(&path, timestamp),
+    })
+    .to_string();
+    write_json_atomic(&path, &content)
 }
 
 pub fn delete_session(id: &str) -> Result<(), String> {

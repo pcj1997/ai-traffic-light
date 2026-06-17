@@ -53,6 +53,30 @@ pnpm tauri:dev
 
 也可以从托盘菜单选择 **安装 AI Hooks**。
 
+## CodeBuddy Remote-SSH
+
+CodeBuddy CN IDE 通过 SSH 打开服务器代码时，Hook 通常会在远端 Extension Host 中执行。普通本机 Hook 会写入服务器上的 `~/.ai-traffic-light/sessions`，本机 macOS/Windows 的悬浮灯无法直接读取，因此需要启用 SSH 桥接。
+
+应用启动后会在本机 `127.0.0.1:37628` 上开启一个只监听本机回环地址的桥接端口。端口被占用时，桥接卡片会显示错误，需要退出占用该端口的程序后重启应用。使用步骤：
+
+1. 将鼠标移到悬浮灯上，找到 **SSH 桥接** 卡片，点击 **生成远端脚本**。
+2. 按卡片里的命令保持 SSH 反向隧道，例如：
+
+```bash
+ssh -N -R 37628:127.0.0.1:37628 user@server
+```
+
+3. 把生成的 `~/.ai-traffic-light/install-codebuddy-remote-hook.sh` 复制到服务器并执行：
+
+```bash
+scp ~/.ai-traffic-light/install-codebuddy-remote-hook.sh user@server:~/
+ssh user@server 'bash ~/install-codebuddy-remote-hook.sh'
+```
+
+4. 重启远端 CodeBuddy 会话或重新打开 SSH 工作区，再新建对话验证状态灯。
+
+远端脚本会写入服务器上的 `~/.codebuddy/settings.json`，写入前会在同目录生成 `settings.ai-traffic-light-backup-*.json` 备份；状态会通过反向隧道发回本机应用。桥接地址包含本机生成的 token；不要把生成的远端脚本提交到仓库或发给不可信的人。
+
 托盘菜单提供 **开机自启动** 和 **清除会话记录** 选项。悬浮面板会列出当前会话及其最近状态，支持删除单条记录或清除全部记录。
 
 AI Traffic Light 会分别监听 CodeBuddy、Codex 和 Claude 的本次运行周期。观察到某个客户端退出后，本轮监听到的对应会话记录会自动移除；异常残留的记录也会按状态定期回收。

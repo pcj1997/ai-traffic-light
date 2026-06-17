@@ -40,6 +40,13 @@
           <span id="hooks-status" class="hooks-status" role="status" hidden></span>
           <button id="setup-hooks" type="button">安装 Hooks</button>
         </section>
+        <section id="remote-bridge" class="panel remote-bridge">
+          <strong>SSH 桥接</strong>
+          <span id="remote-bridge-summary">正在启动…</span>
+          <code id="remote-bridge-command"></code>
+          <span id="remote-bridge-status" class="hooks-status" role="status" hidden></span>
+          <button id="prepare-remote-bridge" type="button">生成远端脚本</button>
+        </section>
       </div>
     </main>
     <script type="module" src="/src/main.ts"></script>

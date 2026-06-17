@@ -1,4 +1,5 @@
 mod hooks;
+mod remote_bridge;
 mod sessions;
 
 use sessions::{
@@ -37,6 +38,16 @@ fn remove_session(id: String) -> Result<(), String> {
 #[tauri::command]
 fn clear_session_history() -> usize {
     clear_sessions()
+}
+
+#[tauri::command]
+fn get_remote_bridge_status() -> remote_bridge::BridgeStatus {
+    remote_bridge::status()
+}
+
+#[tauri::command]
+fn prepare_remote_codebuddy_bridge() -> Result<remote_bridge::BridgeStatus, String> {
+    remote_bridge::write_remote_installer()
 }
 
 #[cfg(target_os = "windows")]
@@ -87,11 +98,14 @@ pub fn run() {
             install_hooks,
             hooks_installed,
             remove_session,
-            clear_session_history
+            clear_session_history,
+            get_remote_bridge_status,
+            prepare_remote_codebuddy_bridge
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Regular);
+            let _ = remote_bridge::start();
 
             let status_item = MenuItemBuilder::with_id("status", "AI Traffic Light：空闲")
                 .enabled(false)

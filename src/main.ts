@@ -33,6 +33,17 @@ interface SessionSnapshot {
   created_at: number;
 }
 
+interface RemoteBridgeStatus {
+  enabled: boolean;
+  port: number;
+  local_url: string;
+  remote_url: string;
+  ssh_reverse_tunnel_command: string;
+  remote_installer_path: string;
+  remote_install_command: string;
+  error_message: string;
+}
+
 const lights = Array.from(document.querySelectorAll<HTMLElement>(".light"));
 const statusLabel = document.querySelector<HTMLElement>("#status-label");
 const sessionCount = document.querySelector<HTMLElement>("#session-count");
@@ -45,6 +56,18 @@ const hooksStatus = document.querySelector<HTMLElement>("#hooks-status");
 const setupButton = document.querySelector<HTMLButtonElement>("#setup-hooks");
 const clearSessionsButton =
   document.querySelector<HTMLButtonElement>("#clear-sessions");
+const remoteBridgeSummary = document.querySelector<HTMLElement>(
+  "#remote-bridge-summary",
+);
+const remoteBridgeCommand = document.querySelector<HTMLElement>(
+  "#remote-bridge-command",
+);
+const remoteBridgeStatus = document.querySelector<HTMLElement>(
+  "#remote-bridge-status",
+);
+const prepareRemoteBridgeButton = document.querySelector<HTMLButtonElement>(
+  "#prepare-remote-bridge",
+);
 const appWindow = getCurrentWindow();
 const panelShift = 158;
 let hooksSuccessVisibleUntil = 0;
@@ -197,6 +220,37 @@ function setHooksStatus(message: string, state: "busy" | "error" | "success") {
   hooksStatus.textContent = message;
 }
 
+function setRemoteBridgeStatus(
+  message: string,
+  state: "busy" | "error" | "success",
+) {
+  if (!remoteBridgeStatus) return;
+  remoteBridgeStatus.hidden = false;
+  remoteBridgeStatus.dataset.state = state;
+  remoteBridgeStatus.textContent = message;
+}
+
+async function refreshRemoteBridgeStatus() {
+  try {
+    const status = await invoke<RemoteBridgeStatus>("get_remote_bridge_status");
+    if (remoteBridgeSummary) {
+      remoteBridgeSummary.textContent = status.enabled
+        ? `本机端口 ${status.port}`
+        : `桥接未启动${status.error_message ? `：${status.error_message}` : ""}`;
+    }
+    if (remoteBridgeCommand) {
+      remoteBridgeCommand.textContent = status.ssh_reverse_tunnel_command;
+      remoteBridgeCommand.hidden = !status.enabled;
+    }
+    if (prepareRemoteBridgeButton) {
+      prepareRemoteBridgeButton.disabled = !status.enabled;
+    }
+  } catch (error) {
+    if (remoteBridgeSummary) remoteBridgeSummary.textContent = "桥接状态读取失败";
+    console.error("Failed to refresh remote bridge status", error);
+  }
+}
+
 setupButton?.addEventListener("click", async () => {
   setupButton.disabled = true;
   setupButton.textContent = "正在安装…";
@@ -217,6 +271,25 @@ setupButton?.addEventListener("click", async () => {
   }
 });
 
+prepareRemoteBridgeButton?.addEventListener("click", async () => {
+  prepareRemoteBridgeButton.disabled = true;
+  setRemoteBridgeStatus("正在生成远端安装脚本…", "busy");
+  try {
+    const status = await invoke<RemoteBridgeStatus>(
+      "prepare_remote_codebuddy_bridge",
+    );
+    setRemoteBridgeStatus(
+      `已生成：${status.remote_installer_path}。先保持 SSH 反向隧道，再把脚本复制到服务器运行。`,
+      "success",
+    );
+    await refreshRemoteBridgeStatus();
+  } catch (error) {
+    setRemoteBridgeStatus(`生成失败：${String(error)}`, "error");
+  } finally {
+    prepareRemoteBridgeButton.disabled = false;
+  }
+});
+
 clearSessionsButton?.addEventListener("click", async () => {
   clearSessionsButton.disabled = true;
   try {
@@ -229,6 +302,7 @@ clearSessionsButton?.addEventListener("click", async () => {
 
 refresh();
 refreshHooksStatus();
+refreshRemoteBridgeStatus();
 updatePanelPlacement().catch((error) => {
   console.error("Failed to update panel placement", error);
 });
@@ -239,3 +313,4 @@ appWindow.onMoved(({ payload }) => {
 });
 window.setInterval(refresh, 500);
 window.setInterval(refreshHooksStatus, 5000);
+window.setInterval(refreshRemoteBridgeStatus, 5000);

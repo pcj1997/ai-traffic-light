@@ -13,6 +13,8 @@ import sys
 import tempfile
 import time
 from typing import Any
+import urllib.error
+import urllib.request
 
 
 SESSIONS_DIR = Path.home() / ".ai-traffic-light" / "sessions"
@@ -61,6 +63,21 @@ def write_json_atomic(path: Path, content: dict[str, Any]) -> None:
         json.dump(content, handle, ensure_ascii=False, separators=(",", ":"))
         temporary_path = Path(handle.name)
     temporary_path.replace(path)
+
+
+def post_bridge_update(url: str, content: dict[str, Any]) -> None:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(content, ensure_ascii=False, separators=(",", ":")).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=2):
+            pass
+    except (OSError, urllib.error.URLError):
+        # Hook commands should not block or fail the AI client when the SSH bridge is absent.
+        pass
 
 
 def existing_created_at(path: Path, fallback: int) -> int:
@@ -181,6 +198,7 @@ def main() -> None:
     parser.add_argument("--message", default="")
     parser.add_argument("--notification-only", action="store_true")
     parser.add_argument("--emit-empty-json", action="store_true")
+    parser.add_argument("--bridge-url", default="")
     args = parser.parse_args()
 
     event = read_event()
@@ -199,14 +217,29 @@ def main() -> None:
             return
 
     args.state, args.message = adjust_state(event, args.state, args.message)
-    path = SESSIONS_DIR / f"{args.client}-{safe_session_id(event)}.json"
+    session_id = safe_session_id(event)
+    timestamp = int(time.time())
+    content = {
+        "client": args.client,
+        "session_id": session_id,
+        "state": args.state,
+        "message": args.message,
+        "cwd": str(event.get("cwd") or os.getcwd()),
+        "timestamp": timestamp,
+    }
+    if args.bridge_url:
+        post_bridge_update(args.bridge_url, content)
+        if args.emit_empty_json:
+            print("{}")
+        return
+
+    path = SESSIONS_DIR / f"{args.client}-{session_id}.json"
     if args.state == "idle":
         path.unlink(missing_ok=True)
         if args.emit_empty_json:
             print("{}")
         return
 
-    timestamp = int(time.time())
     write_json_atomic(
         path,
         {

@@ -69,6 +69,37 @@ jobs:
             python3 hooks/status_writer.py --client codex --state completed --message done --emit-empty-json)"
           test "$output" = "{}"
           test -f "$HOME/.ai-traffic-light/sessions/codex-ci-codex.json"
+          bridge_body="$RUNNER_TEMP/ai-traffic-light-bridge-body.json"
+          python3 - <<'PY' "$bridge_body" &
+          import http.server
+          import pathlib
+          import sys
+          out = pathlib.Path(sys.argv[1])
+          class Handler(http.server.BaseHTTPRequestHandler):
+              def do_POST(self):
+                  out.write_bytes(self.rfile.read(int(self.headers.get("content-length", "0"))))
+                  self.send_response(200)
+                  self.end_headers()
+                  self.wfile.write(b'{"ok":true}')
+              def log_message(self, *args):
+                  pass
+          http.server.HTTPServer(("127.0.0.1", 38628), Handler).handle_request()
+          PY
+          bridge_pid=$!
+          sleep 0.2
+          printf '{"session_id":"ci-remote","cwd":"/srv/中文项目"}' |
+            python3 hooks/status_writer.py --client codebuddy --state working --message test --bridge-url http://127.0.0.1:38628/hook/test
+          wait "$bridge_pid"
+          python3 - <<'PY' "$bridge_body"
+          import json
+          import pathlib
+          import sys
+          body = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert body["client"] == "codebuddy", body
+          assert body["session_id"] == "ci-remote", body
+          assert body["state"] == "working", body
+          assert body["cwd"] == "/srv/中文项目", body
+          PY
 
       - name: Test PowerShell Hook
         if: runner.os == 'Windows'

@@ -6,7 +6,8 @@ param(
     [string]$State,
     [string]$Message = "",
     [switch]$NotificationOnly,
-    [switch]$EmitEmptyJson
+    [switch]$EmitEmptyJson,
+    [string]$BridgeUrl = ""
 )
 
 $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
@@ -189,6 +190,20 @@ function Set-EventAwareState {
     }
 }
 
+function Send-BridgeUpdate {
+    param(
+        [string]$Url,
+        [hashtable]$Content
+    )
+
+    try {
+        $body = $Content | ConvertTo-Json -Compress
+        Invoke-RestMethod -Uri $Url -Method Post -ContentType "application/json; charset=utf-8" -Body $body -TimeoutSec 2 | Out-Null
+    } catch {
+        # Hook commands should not block or fail the AI client when the SSH bridge is absent.
+    }
+}
+
 try {
     $inputJson = [Console]::In.ReadToEnd()
     $eventData = if ($inputJson) { $inputJson | ConvertFrom-Json } else { [PSCustomObject]@{} }
@@ -219,7 +234,26 @@ if ($NotificationOnly) {
 
 Set-EventAwareState $eventData
 New-Item -ItemType Directory -Path $sessionsDir -Force | Out-Null
-$sessionFile = Join-Path $sessionsDir "$Client-$(Get-SafeSessionId $eventData).json"
+$sessionId = Get-SafeSessionId $eventData
+$sessionFile = Join-Path $sessionsDir "$Client-$sessionId.json"
+$epoch = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$cwd = Get-EventValue $eventData "cwd"
+if (-not $cwd) { $cwd = (Get-Location).Path }
+
+if ($BridgeUrl) {
+    Send-BridgeUpdate $BridgeUrl @{
+        client = $Client
+        session_id = $sessionId
+        state = $State
+        message = $Message
+        cwd = [string]$cwd
+        timestamp = $epoch
+    }
+    if ($EmitEmptyJson) {
+        [Console]::Out.WriteLine("{}")
+    }
+    exit 0
+}
 
 if ($State -eq "idle") {
     Remove-Item $sessionFile -Force -ErrorAction SilentlyContinue
@@ -229,7 +263,6 @@ if ($State -eq "idle") {
     exit 0
 }
 
-$epoch = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $createdAt = $epoch
 if (Test-Path $sessionFile -PathType Leaf) {
     try {
@@ -241,8 +274,6 @@ if (Test-Path $sessionFile -PathType Leaf) {
         $createdAt = $epoch
     }
 }
-$cwd = Get-EventValue $eventData "cwd"
-if (-not $cwd) { $cwd = (Get-Location).Path }
 $content = @{
     client = $Client
     state = $State
